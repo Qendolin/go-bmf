@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<font>
+  <info face="Arial" size="-26" bold="1" italic="1" charset="" unicode="1" stretchH="90" smooth="1" aa="2" padding="1,2,3,4" spacing="2,1" outline="2"/>
+  <common lineHeight="27" base="22" scaleW="32" scaleH="64" pages="2" packed="0" alphaChnl="0" redChnl="1" greenChnl="3" blueChnl="4"/>
+  <pages>
+    <page id="0" file="test-bin_0.png" />
+    <page id="1" file="test-bin_1.png" />
+  </pages>
+  <chars count="4">
+    <char id="-1" x="0" y="26" width="24" height="23" xoffset="-3" yoffset="4" xadvance="19" page="1" chnl="15" />
+    <char id="65" x="0" y="0" width="29" height="25" xoffset="-6" yoffset="2" xadvance="19" page="0" chnl="15" />
+    <char id="84" x="0" y="0" width="26" height="25" xoffset="-3" yoffset="2" xadvance="16" page="1" chnl="15" />
+    <char id="86" x="0" y="26" width="29" height="25" xoffset="-4" yoffset="2" xadvance="17" page="0" chnl="15" />
+  </chars>
+  <kernings count="4">
+    <kerning first="86" second="65" amount="-2" />
+    <kerning first="84" second="65" amount="-2" />
+    <kerning first="65" second="86" amount="-2" />
+    <kerning first="65" second="84" amount="-2" />
+  </kernings>
+</font>
