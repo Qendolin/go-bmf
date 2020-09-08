@@ -4,17 +4,17 @@ Supports parsing text, XML and binary formats in version 3. Also supports writin
 
 ## API
 
-`bmf.Parse(data []byte) (bmf.Font, error)`  
+`bmf.Parse(data []byte) (*bmf.Font, error)`  
 Parses AngleCode BMF and automatically chooses the correct format
 
 
-`bmf.ParseText(data []byte) (bmf.Font, error)`  
+`bmf.ParseText(data []byte) (*bmf.Font, error)`  
 Parses AngleCode BMF in text format
 
 
-`bmf.ParseXML(data []byte) (bmf.Font, error)`  
+`bmf.ParseXML(data []byte) (*bmf.Font, error)`  
 Parses AngleCode BMF in XML format
 
 
-`bmf.ParseBinary(data []byte) (bmf.Font, error)`  
+`bmf.ParseBinary(data []byte) (*bmf.Font, error)`  
 Parses AngleCode BMF in binary format
