@@ -1,6 +1,6 @@
 // package bmf implements BMF .fnt file parsing.
 // It supports only version 3 of the binary format.
-// For more infromation go to http://www.angelcode.com/products/bmfont/doc/file_format.html
+// For more infromation see http://www.angelcode.com/products/bmfont/doc/file_format.html
 package bmf
 
 import (

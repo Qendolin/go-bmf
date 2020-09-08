@@ -82,6 +82,7 @@ func (e BinaryParseError) Error() string {
 }
 
 // Parses a bmf font file in binary format
+// For more information see http://www.angelcode.com/products/bmfont/doc/file_format.html#bin
 func ParseBinary(data []byte) (fnt *Font, err error) {
 	frd := &byteReader{Data: data}
 	rd := frd
