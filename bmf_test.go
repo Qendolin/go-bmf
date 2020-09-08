@@ -1,6 +1,7 @@
 package bmf_test
 
 import (
+	"encoding/xml"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -97,11 +98,19 @@ var Expected = bmf.Font{
 	},
 }
 
-func TestXML(t *testing.T) {
+func TestParseXML(t *testing.T) {
 	f, err := os.Open("./testdata/test-xml.fnt")
 	require.NoErrorf(t, err, "Unable to open testdata")
 	data, err := ioutil.ReadAll(f)
 	require.NoErrorf(t, err, "Unable to read testdata")
+	fnt, err := bmf.ParseXML(data)
+	require.NoError(t, err)
+	assertFontEqual(t, Expected, *fnt)
+}
+
+func TestWriteXML(t *testing.T) {
+	data, err := xml.MarshalIndent(Expected, "", "\t")
+	require.NoError(t, err)
 	fnt, err := bmf.ParseXML(data)
 	require.NoError(t, err)
 	assertFontEqual(t, Expected, *fnt)

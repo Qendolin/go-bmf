@@ -1,6 +1,6 @@
 # AngleCode BMF parsing in Go
  
-Supports text, XML and binary formats in version 3.
+Supports parsing text, XML and binary formats in version 3. Also supports writing as XML.
 
 ## API
 

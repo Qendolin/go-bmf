@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+type BinBool bool
+
 type ChannelData int
 
 const (
@@ -52,12 +54,12 @@ type Font struct {
 type Info struct {
 	Face     string  `xml:"face,attr"`
 	Size     int     `xml:"size,attr"`
-	Bold     bool    `xml:"bold,attr"`
-	Italic   bool    `xml:"italic,attr"`
+	Bold     BinBool `xml:"bold,attr"`
+	Italic   BinBool `xml:"italic,attr"`
 	Charset  string  `xml:"charset,attr"`
-	Unicode  bool    `xml:"unicode,attr"`
+	Unicode  BinBool `xml:"unicode,attr"`
 	StretchH int     `xml:"stretchH,attr"`
-	Smooth   bool    `xml:"smooth,attr"`
+	Smooth   BinBool `xml:"smooth,attr"`
 	AA       int     `xml:"aa,attr"`
 	Padding  Padding `xml:"padding,attr"`
 	Spacing  Spacing `xml:"spacing,attr"`
@@ -70,7 +72,7 @@ type Common struct {
 	ScaleW       int         `xml:"scaleW,attr"`
 	ScaleH       int         `xml:"scaleH,attr"`
 	Pages        int         `xml:"pages,attr"`
-	Packed       bool        `xml:"packed,attr"`
+	Packed       BinBool     `xml:"packed,attr"`
 	AlphaChannel ChannelData `xml:"alphaChnl,attr"`
 	RedChannel   ChannelData `xml:"redChnl,attr"`
 	GreenChannel ChannelData `xml:"greenChnl,attr"`
@@ -136,7 +138,7 @@ func atoi(i *int, a string) {
 	}
 }
 
-func itob(i int) bool {
+func itob(i int) BinBool {
 	if i == 1 {
 		return true
 	}
