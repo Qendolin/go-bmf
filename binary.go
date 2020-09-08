@@ -20,7 +20,7 @@ type byteReader struct {
 	Err    error
 }
 
-func (br *byteReader) Read(n int) (ok bool) {
+func (br *byteReader) read(n int) (ok bool) {
 	if br.Err != nil {
 		return false
 	}
@@ -40,32 +40,32 @@ func (br *byteReader) Read(n int) (ok bool) {
 	return true
 }
 
-func (br *byteReader) ReadInt16(i *int, bo binary.ByteOrder) (ok bool) {
-	if !br.Read(2) {
+func (br *byteReader) readInt16(i *int, bo binary.ByteOrder) (ok bool) {
+	if !br.read(2) {
 		return false
 	}
 	*i = int(int16(bo.Uint16(br.Buffer)))
 	return true
 }
 
-func (br *byteReader) ReadInt8(i *int, bo binary.ByteOrder) (ok bool) {
-	if !br.Read(1) {
+func (br *byteReader) readInt8(i *int, bo binary.ByteOrder) (ok bool) {
+	if !br.read(1) {
 		return false
 	}
 	*i = int(int8(br.Buffer[0]))
 	return true
 }
 
-func (br *byteReader) ReadBits(i *uint8) (ok bool) {
-	if !br.Read(1) {
+func (br *byteReader) readBits(i *uint8) (ok bool) {
+	if !br.read(1) {
 		return false
 	}
 	*i = br.Buffer[0]
 	return true
 }
 
-func (br *byteReader) ReadRune(r *rune, bo binary.ByteOrder) (ok bool) {
-	if !br.Read(4) {
+func (br *byteReader) readRune(r *rune, bo binary.ByteOrder) (ok bool) {
+	if !br.read(4) {
 		return false
 	}
 	*r = rune(int32(bo.Uint32(br.Buffer)))
@@ -81,6 +81,7 @@ func (e BinaryParseError) Error() string {
 	return fmt.Sprintf("format error at %v in %v during %v: %v", e.Offset, e.BlockName, blockStr, e.Err)
 }
 
+// Parses a bmf font file in binary format
 func ParseBinary(data []byte) (fnt *Font, err error) {
 	frd := &byteReader{Data: data}
 	rd := frd
@@ -98,14 +99,14 @@ func ParseBinary(data []byte) (fnt *Font, err error) {
 		}
 	}()
 
-	if !frd.Read(3) {
+	if !frd.read(3) {
 		return nil, fmt.Errorf("expected three bytes for the file identifier")
 	}
 	if string(frd.Buffer) != "BMF" {
 		return nil, fmt.Errorf("expected 'BMF'")
 	}
 
-	if !frd.Read(1) {
+	if !frd.read(1) {
 		return nil, fmt.Errorf("expected one byte for the format version")
 	}
 	if frd.Buffer[0] != 3 {
@@ -114,7 +115,7 @@ func ParseBinary(data []byte) (fnt *Font, err error) {
 
 	bin := binary.LittleEndian
 
-	for frd.Read(5) {
+	for frd.read(5) {
 		typ := rd.Buffer[0]
 		switch typ {
 		case 1:
@@ -132,7 +133,7 @@ func ParseBinary(data []byte) (fnt *Font, err error) {
 		}
 
 		blockLen := int(bin.Uint32(rd.Buffer[1:]))
-		if !rd.Read(blockLen) {
+		if !rd.read(blockLen) {
 			return nil, fmt.Errorf("expected a %v block with length of %d", blockName, blockLen)
 		}
 		brd := &byteReader{Data: rd.Buffer}
@@ -140,11 +141,11 @@ func ParseBinary(data []byte) (fnt *Font, err error) {
 
 		switch blockName {
 		case "info":
-			if !brd.ReadInt16(&fnt.Info.Size, bin) {
+			if !brd.readInt16(&fnt.Info.Size, bin) {
 				return nil, fmt.Errorf("expected two bytes for fontSize")
 			}
 			var flags uint8
-			if !brd.ReadBits(&flags) {
+			if !brd.readBits(&flags) {
 				return nil, fmt.Errorf("expected one byte for bitField")
 			}
 			fnt.Info.Smooth = itob(int(flags >> 7 & 0x1))
@@ -152,38 +153,38 @@ func ParseBinary(data []byte) (fnt *Font, err error) {
 			fnt.Info.Italic = itob(int(flags >> 5 & 0x1))
 			fnt.Info.Bold = itob(int(flags >> 4 & 0x1))
 			//FIXME: Unused "fixedHeigth" bit
-			if !brd.Read(1) {
+			if !brd.read(1) {
 				return nil, fmt.Errorf("expected one byte for charSet")
 			}
 
-			if !brd.ReadInt16(&fnt.Info.StretchH, bin) {
+			if !brd.readInt16(&fnt.Info.StretchH, bin) {
 				return nil, fmt.Errorf("expected two bytes for stretchH")
 			}
-			if !brd.ReadInt8(&fnt.Info.AA, bin) {
+			if !brd.readInt8(&fnt.Info.AA, bin) {
 				return nil, fmt.Errorf("expected one byte for aa")
 			}
-			if !brd.ReadInt8(&fnt.Info.Padding.Up, bin) {
+			if !brd.readInt8(&fnt.Info.Padding.Up, bin) {
 				return nil, fmt.Errorf("expected one byte for paddingUp")
 			}
-			if !brd.ReadInt8(&fnt.Info.Padding.Right, bin) {
+			if !brd.readInt8(&fnt.Info.Padding.Right, bin) {
 				return nil, fmt.Errorf("expected one byte for paddingRight")
 			}
-			if !brd.ReadInt8(&fnt.Info.Padding.Down, bin) {
+			if !brd.readInt8(&fnt.Info.Padding.Down, bin) {
 				return nil, fmt.Errorf("expected one byte for paddingDown")
 			}
-			if !brd.ReadInt8(&fnt.Info.Padding.Left, bin) {
+			if !brd.readInt8(&fnt.Info.Padding.Left, bin) {
 				return nil, fmt.Errorf("expected one byte for paddingLeft")
 			}
-			if !brd.ReadInt8(&fnt.Info.Spacing.Horizontal, bin) {
+			if !brd.readInt8(&fnt.Info.Spacing.Horizontal, bin) {
 				return nil, fmt.Errorf("expected one byte for spacingHoriz")
 			}
-			if !brd.ReadInt8(&fnt.Info.Spacing.Vertical, bin) {
+			if !brd.readInt8(&fnt.Info.Spacing.Vertical, bin) {
 				return nil, fmt.Errorf("expected one byte for spacingVert")
 			}
-			if !brd.ReadInt8(&fnt.Info.Outline, bin) {
+			if !brd.readInt8(&fnt.Info.Outline, bin) {
 				return nil, fmt.Errorf("expected one byte for outline")
 			}
-			if len := blockLen - brd.Index; !brd.Read(len) {
+			if len := blockLen - brd.Index; !brd.read(len) {
 				return nil, fmt.Errorf("expected %d bytes for fontName", len)
 			}
 			if brd.Buffer[len(brd.Buffer)-1] != 0 {
@@ -191,43 +192,43 @@ func ParseBinary(data []byte) (fnt *Font, err error) {
 			}
 			fnt.Info.Face = string(brd.Buffer[:len(brd.Buffer)-1])
 		case "common":
-			if !brd.ReadInt16(&fnt.Common.LineHeight, bin) {
+			if !brd.readInt16(&fnt.Common.LineHeight, bin) {
 				return nil, fmt.Errorf("expected two bytes for lineHeight")
 			}
-			if !brd.ReadInt16(&fnt.Common.Base, bin) {
+			if !brd.readInt16(&fnt.Common.Base, bin) {
 				return nil, fmt.Errorf("expected two bytes for base")
 			}
-			if !brd.ReadInt16(&fnt.Common.ScaleW, bin) {
+			if !brd.readInt16(&fnt.Common.ScaleW, bin) {
 				return nil, fmt.Errorf("expected two bytes for scaleW")
 			}
-			if !brd.ReadInt16(&fnt.Common.ScaleH, bin) {
+			if !brd.readInt16(&fnt.Common.ScaleH, bin) {
 				return nil, fmt.Errorf("expected two bytes for scaleH")
 			}
-			if !brd.ReadInt16(&fnt.Common.Pages, bin) {
+			if !brd.readInt16(&fnt.Common.Pages, bin) {
 				return nil, fmt.Errorf("expected two bytes for pages")
 			}
 			var flags uint8
-			if !brd.ReadBits(&flags) {
+			if !brd.readBits(&flags) {
 				return nil, fmt.Errorf("expected one byte for bitField")
 			}
 			fnt.Common.Packed = itob(int(flags >> 0 & 1))
-			if !brd.ReadInt8((*int)(&fnt.Common.AlphaChannel), bin) {
+			if !brd.readInt8((*int)(&fnt.Common.AlphaChannel), bin) {
 				return nil, fmt.Errorf("expected one byte for alphaChnl")
 			}
-			if !brd.ReadInt8((*int)(&fnt.Common.RedChannel), bin) {
+			if !brd.readInt8((*int)(&fnt.Common.RedChannel), bin) {
 				return nil, fmt.Errorf("expected one byte for redChnl")
 			}
-			if !brd.ReadInt8((*int)(&fnt.Common.GreenChannel), bin) {
+			if !brd.readInt8((*int)(&fnt.Common.GreenChannel), bin) {
 				return nil, fmt.Errorf("expected one byte for greenChnl")
 			}
-			if !brd.ReadInt8((*int)(&fnt.Common.BlueChannel), bin) {
+			if !brd.readInt8((*int)(&fnt.Common.BlueChannel), bin) {
 				return nil, fmt.Errorf("expected one byte for blueChnl")
 			}
 		case "pages":
 			nameLen := 0
 			file0 := ""
 			start := brd.Index
-			if !brd.Read(blockLen - start - 1) {
+			if !brd.read(blockLen - start - 1) {
 				return nil, fmt.Errorf("expected %d bytes for pageNames", blockLen-start-1)
 			}
 			for i, b := range brd.Buffer {
@@ -247,7 +248,7 @@ func ParseBinary(data []byte) (fnt *Font, err error) {
 
 			brd.Index = start + nameLen
 			for brd.Index < blockLen {
-				if !brd.Read(nameLen) {
+				if !brd.read(nameLen) {
 					return nil, fmt.Errorf("expected %d bytes for pageName", nameLen)
 				}
 				fnt.Pages = append(fnt.Pages, Page{
@@ -261,34 +262,34 @@ func ParseBinary(data []byte) (fnt *Font, err error) {
 		case "chars":
 			for brd.Index < blockLen {
 				chr := Char{}
-				if !brd.ReadRune(&chr.Id, bin) {
+				if !brd.readRune(&chr.Id, bin) {
 					return nil, fmt.Errorf("expected four bytes for id")
 				}
-				if !brd.ReadInt16(&chr.X, bin) {
+				if !brd.readInt16(&chr.X, bin) {
 					return nil, fmt.Errorf("expected two bytes for x")
 				}
-				if !brd.ReadInt16(&chr.Y, bin) {
+				if !brd.readInt16(&chr.Y, bin) {
 					return nil, fmt.Errorf("expected two bytes for y")
 				}
-				if !brd.ReadInt16(&chr.Width, bin) {
+				if !brd.readInt16(&chr.Width, bin) {
 					return nil, fmt.Errorf("expected two bytes for width")
 				}
-				if !brd.ReadInt16(&chr.Height, bin) {
+				if !brd.readInt16(&chr.Height, bin) {
 					return nil, fmt.Errorf("expected two bytes for height")
 				}
-				if !brd.ReadInt16(&chr.XOffset, bin) {
+				if !brd.readInt16(&chr.XOffset, bin) {
 					return nil, fmt.Errorf("expected two bytes for xoffset")
 				}
-				if !brd.ReadInt16(&chr.YOffset, bin) {
+				if !brd.readInt16(&chr.YOffset, bin) {
 					return nil, fmt.Errorf("expected two bytes for yoffset")
 				}
-				if !brd.ReadInt16(&chr.XAdvance, bin) {
+				if !brd.readInt16(&chr.XAdvance, bin) {
 					return nil, fmt.Errorf("expected two bytes for xadvance")
 				}
-				if !brd.ReadInt8(&chr.Page, bin) {
+				if !brd.readInt8(&chr.Page, bin) {
 					return nil, fmt.Errorf("expected one byte for page")
 				}
-				if !brd.ReadInt8((*int)(&chr.Channel), bin) {
+				if !brd.readInt8((*int)(&chr.Channel), bin) {
 					return nil, fmt.Errorf("expected one byte for chnl")
 				}
 				fnt.Chars = append(fnt.Chars, chr)
@@ -299,13 +300,13 @@ func ParseBinary(data []byte) (fnt *Font, err error) {
 		case "kerning pairs":
 			for brd.Index < blockLen {
 				kern := Kerning{}
-				if !brd.ReadRune(&kern.First, bin) {
+				if !brd.readRune(&kern.First, bin) {
 					return nil, fmt.Errorf("expected four bytes for first")
 				}
-				if !brd.ReadRune(&kern.Second, bin) {
+				if !brd.readRune(&kern.Second, bin) {
 					return nil, fmt.Errorf("expected four bytes for second")
 				}
-				if !brd.ReadInt16(&kern.Amount, bin) {
+				if !brd.readInt16(&kern.Amount, bin) {
 					return nil, fmt.Errorf("expected two bytes for amount")
 				}
 				fnt.Kernings = append(fnt.Kernings, kern)

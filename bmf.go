@@ -1,3 +1,6 @@
+// package bmf implements BMF .fnt file parsing.
+// It supports only version 3 of the binary format.
+// For more infromation go to http://www.angelcode.com/products/bmfont/doc/file_format.html
 package bmf
 
 import (
@@ -140,6 +143,7 @@ func itob(i int) bool {
 	return false
 }
 
+// Parses bmf font file and detects the format automatically
 func Parse(data []byte) (*Font, error) {
 	if len(data) < 5 {
 		return nil, fmt.Errorf("data must have length of at least 5 bytes")
