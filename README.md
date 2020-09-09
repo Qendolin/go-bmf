@@ -3,6 +3,7 @@
 Supports parsing text, XML and binary formats in version 3. Also supports writing as XML.
 
 ## API
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/Qendolin/go-bmf)](https://pkg.go.dev/github.com/Qendolin/go-bmf)
 
 `bmf.Parse(data []byte) (*bmf.Font, error)`  
 Parses AngelCode BMF and automatically chooses the correct format
