@@ -19,3 +19,7 @@ Parses AngelCode BMF in XML format
 
 `bmf.ParseBinary(data []byte) (*bmf.Font, error)`  
 Parses AngelCode BMF in binary format
+
+## Issues
+
+If you find any problems please report them. :) 
