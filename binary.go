@@ -6,6 +6,7 @@ import (
 	"io"
 )
 
+// BinaryParseError contains info about where and why a parsing error occured
 type BinaryParseError struct {
 	Offset    int
 	Block     []byte
@@ -34,10 +35,8 @@ func (br *byteReader) read(n int) (ok bool) {
 		br.Buffer = br.Buffer[:n]
 	}
 	br.Index += copy(br.Buffer, br.Data[br.Index:br.Index+n])
-	if br.Err != nil {
-		return false
-	}
-	return true
+
+	return br.Err == nil
 }
 
 func (br *byteReader) readInt16(i *int, bo binary.ByteOrder) (ok bool) {
@@ -81,7 +80,7 @@ func (e BinaryParseError) Error() string {
 	return fmt.Sprintf("format error at %v in %v during %v: %v", e.Offset, e.BlockName, blockStr, e.Err)
 }
 
-// Parses a bmf font file in binary format
+// ParseBinary parses a bmf font definition in binary format.
 // For more information see http://www.angelcode.com/products/bmfont/doc/file_format.html#bin
 func ParseBinary(data []byte) (fnt *Font, err error) {
 	frd := &byteReader{Data: data}
@@ -320,49 +319,4 @@ func ParseBinary(data []byte) (fnt *Font, err error) {
 	}
 
 	return fnt, nil
-}
-
-// source https://docs.microsoft.com/en-us/previous-versions/windows/desktop/bb322881(v=vs.85)
-func lookupCharset(chrset int) string {
-	switch chrset {
-	case 186:
-		return "Baltic"
-	case 77:
-		return "Mac"
-	case 204:
-		return "Russian"
-	case 238:
-		return "EastEurope"
-	case 222:
-		return "Thai"
-	case 163:
-		return "Vietnamese"
-	case 162:
-		return "Turkish"
-	case 161:
-		return "Greek"
-	case 178:
-		return "Arabic"
-	case 177:
-		return "Hebrew"
-	case 130:
-		return "Johab"
-	case 255:
-		return "Oem"
-	case 136:
-		return "ChineseBig5"
-	case 134:
-		return "GB2312"
-	case 129:
-		return "Hangul"
-	case 128:
-		return "ShiftJIS"
-	case 2:
-		return "Symbol"
-	case 1:
-		return "Default"
-	case 0:
-		return "Ansi"
-	}
-	return fmt.Sprintf("%d", chrset)
 }

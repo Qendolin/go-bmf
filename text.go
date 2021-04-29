@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// TextParseError contains info about where and why a parsing error occured
 type TextParseError struct {
 	LineNumber int
 	Line       string
@@ -24,7 +25,7 @@ func (e TextParseError) Unwrap() error {
 	return e.Err
 }
 
-// Parses a bmf font file in text format
+// ParseText parses a bmf font file in text format
 func ParseText(data []byte) (fnt *Font, err error) {
 	var lineNr int
 	var line string

@@ -1,6 +1,6 @@
-// package bmf implements BMF .fnt file parsing.
+// Package bmf implements BMF .fnt file parsing.
 // It supports only version 3 of the binary format.
-// For more infromation see http://www.angelcode.com/products/bmfont/doc/file_format.html
+// For more information see http://www.angelcode.com/products/bmfont/doc/file_format.html
 package bmf
 
 import (
@@ -9,10 +9,13 @@ import (
 	"strings"
 )
 
+// BinBool represents a boolean as 0 or 1 in xml
 type BinBool bool
 
+// ChannelData specifies the type of data that a color channel holds
 type ChannelData int
 
+// Channel data types
 const (
 	Glyph ChannelData = iota
 	Outline
@@ -21,16 +24,20 @@ const (
 	One
 )
 
+// Channel is a bitfield to specify color channels
 type Channel int
 
+// RGBA channel bits
 const (
-	Blue  = 0x1
-	Green = 0x2
-	Red   = 0x4
-	Alpha = 0x8
-	All   = 0xf
+	Blue  Channel = 0x1
+	Green Channel = 0x2
+	Red   Channel = 0x4
+	Alpha Channel = 0x8
+	All   Channel = 0xf
 )
 
+// Padding specifies the padding for each character in pixels
+// See https://www.angelcode.com/products/bmfont/doc/export_options.html
 type Padding struct {
 	Up    int
 	Right int
@@ -38,11 +45,14 @@ type Padding struct {
 	Left  int
 }
 
+// Spacing specifies the spacing for each character in pixels
+// See https://www.angelcode.com/products/bmfont/doc/export_options.html
 type Spacing struct {
 	Horizontal int
 	Vertical   int
 }
 
+// Font defines an AngelCode Bitmap Font
 type Font struct {
 	Info     Info      `xml:"info"`
 	Common   Common    `xml:"common"`
@@ -51,6 +61,7 @@ type Font struct {
 	Kernings []Kerning `xml:"kernings>kerning"`
 }
 
+// Info holds information on how the font was generated
 type Info struct {
 	Face     string  `xml:"face,attr"`
 	Size     int     `xml:"size,attr"`
@@ -66,6 +77,7 @@ type Info struct {
 	Outline  int     `xml:"outline,attr"`
 }
 
+// Common holds information common to all characters.
 type Common struct {
 	LineHeight   int         `xml:"lineHeight,attr"`
 	Base         int         `xml:"base,attr"`
@@ -79,6 +91,7 @@ type Common struct {
 	BlueChannel  ChannelData `xml:"blueChnl,attr"`
 }
 
+// Char describes on character in the font. There is one for each included character in the font.
 type Char struct {
 	Id       rune    `xml:"id,attr"`
 	X        int     `xml:"x,attr"`
@@ -92,12 +105,15 @@ type Char struct {
 	Channel  Channel `xml:"chnl,attr"`
 }
 
+// Kerning specifies the distance between specific character pairs
 type Kerning struct {
 	First  rune `xml:"first,attr"`
 	Second rune `xml:"second,attr"`
 	Amount int  `xml:"amount,attr"`
 }
 
+// Page references a bitmap image that contains the glyphs.
+// A font can contain multiple glyph pages.
 type Page struct {
 	Id   int    `xml:"id,attr"`
 	File string `xml:"file,attr"`
@@ -139,13 +155,10 @@ func atoi(i *int, a string) {
 }
 
 func itob(i int) BinBool {
-	if i == 1 {
-		return true
-	}
-	return false
+	return i == 1
 }
 
-// Parses bmf font file and detects the format automatically
+// Parse parses a bmf font file and detects the format automatically
 func Parse(data []byte) (*Font, error) {
 	if len(data) < 5 {
 		return nil, fmt.Errorf("data must have length of at least 5 bytes")
