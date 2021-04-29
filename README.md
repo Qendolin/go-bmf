@@ -1,4 +1,5 @@
 # AngelCode BMF parsing in Go
+[![Go Report Card](https://goreportcard.com/badge/github.com/Qendolin/go-bmf)](https://goreportcard.com/report/github.com/Qendolin/go-bmf)
  
 Supports parsing text, XML and binary formats in version 3. Also supports writing as XML.
 
