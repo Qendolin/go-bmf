@@ -136,6 +136,23 @@ func TestText(t *testing.T) {
 	assertFontEqual(t, Expected, *fnt)
 }
 
+func TestAutoDetect(t *testing.T) {
+
+	parse := func(file string) {
+		f, err := os.Open(file)
+		require.NoErrorf(t, err, "Unable to open testdata")
+		data, err := ioutil.ReadAll(f)
+		require.NoErrorf(t, err, "Unable to read testdata")
+		fnt, err := bmf.Parse(data)
+		require.NoError(t, err)
+		assertFontEqual(t, Expected, *fnt)
+	}
+
+	parse("./testdata/test-text.fnt")
+	parse("./testdata/test-bin.fnt")
+	parse("./testdata/test-xml.fnt")
+}
+
 func assertFontEqual(t *testing.T, expected bmf.Font, actual bmf.Font) {
 	assert.Equal(t, expected.Info, actual.Info)
 	assert.Equal(t, expected.Common, actual.Common)

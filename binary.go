@@ -6,6 +6,25 @@ import (
 	"io"
 )
 
+type binaryBlockLabel string
+
+const (
+	blockHeader       binaryBlockLabel = "header"
+	blockInfo         binaryBlockLabel = "info"
+	blockCommon       binaryBlockLabel = "common"
+	blockPages        binaryBlockLabel = "pages"
+	blockChars        binaryBlockLabel = "chars"
+	blockKerningPairs binaryBlockLabel = "kerning pairs"
+)
+
+var binaryBlockTable = map[byte]binaryBlockLabel{
+	1: blockInfo,
+	2: blockCommon,
+	3: blockPages,
+	4: blockChars,
+	5: blockKerningPairs,
+}
+
 // BinaryParseError contains info about where and why a parsing error occured
 type BinaryParseError struct {
 	Offset    int
@@ -83,240 +102,316 @@ func (e BinaryParseError) Error() string {
 // ParseBinary parses a bmf font definition in binary format.
 // For more information see http://www.angelcode.com/products/bmfont/doc/file_format.html#bin
 func ParseBinary(data []byte) (fnt *Font, err error) {
-	frd := &byteReader{Data: data}
-	rd := frd
+	fileReader := &byteReader{Data: data}
 	fnt = &Font{}
-	blockName := "header"
+
+	if err := parseHeaderBinary(fileReader); err != nil {
+		return nil, err
+	}
+
+	for fileReader.read(5) {
+		err = parseBlockBinary(fnt, fileReader)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return fnt, nil
+}
+
+func parseBlockBinary(fnt *Font, fileReader *byteReader) (err error) {
+	var blockLabel binaryBlockLabel
+	order := binary.LittleEndian
 
 	defer func() {
 		if err != nil {
 			err = BinaryParseError{
-				Offset:    rd.Index,
-				Block:     rd.Buffer,
-				BlockName: blockName,
+				Offset:    fileReader.Index,
+				Block:     fileReader.Buffer,
+				BlockName: string(blockHeader),
+				Err:       err,
+			}
+		}
+	}()
+
+	typ := fileReader.Buffer[0]
+	if label, ok := binaryBlockTable[typ]; !ok {
+		return fmt.Errorf("expected block type to be one of 1,2,3,4,5 but was %d", typ)
+	} else {
+		blockLabel = label
+	}
+
+	blockLen := int(order.Uint32(fileReader.Buffer[1:]))
+	if !fileReader.read(blockLen) {
+		return fmt.Errorf("expected a %v block with length of %d", blockLabel, blockLen)
+	}
+	blockReader := &byteReader{Data: fileReader.Buffer}
+
+	switch blockLabel {
+	case "info":
+		info, err := parseInfoBinary(blockReader, order, blockLen)
+		if err != nil {
+			return err
+		}
+		fnt.Info = *info
+	case "common":
+		common, err := parseCommonBinary(blockReader, order)
+		if err != nil {
+			return err
+		}
+		fnt.Common = *common
+	case "pages":
+		pages, err := parsePagesBinary(blockReader, blockLen)
+		if err != nil {
+			return err
+		}
+		fnt.Pages = pages
+	case "chars":
+		chars, err := parseCharsBinary(blockReader, order, blockLen)
+		if err != nil {
+			return err
+		}
+		fnt.Chars = chars
+	case "kerning pairs":
+		kernings, err := parseKerningPairsBinary(blockReader, order, blockLen)
+		if err != nil {
+			return err
+		}
+		fnt.Kernings = kernings
+	}
+
+	return nil
+}
+
+func parseHeaderBinary(frd *byteReader) (err error) {
+	defer func() {
+		if err != nil {
+			err = BinaryParseError{
+				Offset:    frd.Index,
+				Block:     frd.Buffer,
+				BlockName: string(blockHeader),
 				Err:       err,
 			}
 		}
 	}()
 
 	if !frd.read(3) {
-		return nil, fmt.Errorf("expected three bytes for the file identifier")
+		return fmt.Errorf("expected three bytes for the file identifier")
 	}
 	if string(frd.Buffer) != "BMF" {
-		return nil, fmt.Errorf("expected 'BMF'")
+		return fmt.Errorf("expected 'BMF'")
 	}
 
 	if !frd.read(1) {
-		return nil, fmt.Errorf("expected one byte for the format version")
+		return fmt.Errorf("expected one byte for the format version")
 	}
 	if frd.Buffer[0] != 3 {
-		return nil, fmt.Errorf("expected version to be one 3")
+		return fmt.Errorf("expected version to be one 3")
 	}
 
-	bin := binary.LittleEndian
+	return nil
+}
 
-	for frd.read(5) {
-		typ := rd.Buffer[0]
-		switch typ {
-		case 1:
-			blockName = "info"
-		case 2:
-			blockName = "common"
-		case 3:
-			blockName = "pages"
-		case 4:
-			blockName = "chars"
-		case 5:
-			blockName = "kerning pairs"
-		default:
-			return nil, fmt.Errorf("expected block type to be one of 1,2,3,4,5")
-		}
+func parseInfoBinary(brd *byteReader, order binary.ByteOrder, blockLength int) (*Info, error) {
+	info := Info{}
 
-		blockLen := int(bin.Uint32(rd.Buffer[1:]))
-		if !rd.read(blockLen) {
-			return nil, fmt.Errorf("expected a %v block with length of %d", blockName, blockLen)
-		}
-		brd := &byteReader{Data: rd.Buffer}
-		rd = brd
-
-		switch blockName {
-		case "info":
-			if !brd.readInt16(&fnt.Info.Size, bin) {
-				return nil, fmt.Errorf("expected two bytes for fontSize")
-			}
-			var flags uint8
-			if !brd.readBits(&flags) {
-				return nil, fmt.Errorf("expected one byte for bitField")
-			}
-			fnt.Info.Smooth = itob(int(flags >> 7 & 0x1))
-			fnt.Info.Unicode = itob(int(flags >> 6 & 0x1))
-			fnt.Info.Italic = itob(int(flags >> 5 & 0x1))
-			fnt.Info.Bold = itob(int(flags >> 4 & 0x1))
-			//FIXME: Unused "fixedHeigth" bit
-			if !brd.read(1) {
-				return nil, fmt.Errorf("expected one byte for charSet")
-			}
-
-			if !brd.readInt16(&fnt.Info.StretchH, bin) {
-				return nil, fmt.Errorf("expected two bytes for stretchH")
-			}
-			if !brd.readInt8(&fnt.Info.AA, bin) {
-				return nil, fmt.Errorf("expected one byte for aa")
-			}
-			if !brd.readInt8(&fnt.Info.Padding.Up, bin) {
-				return nil, fmt.Errorf("expected one byte for paddingUp")
-			}
-			if !brd.readInt8(&fnt.Info.Padding.Right, bin) {
-				return nil, fmt.Errorf("expected one byte for paddingRight")
-			}
-			if !brd.readInt8(&fnt.Info.Padding.Down, bin) {
-				return nil, fmt.Errorf("expected one byte for paddingDown")
-			}
-			if !brd.readInt8(&fnt.Info.Padding.Left, bin) {
-				return nil, fmt.Errorf("expected one byte for paddingLeft")
-			}
-			if !brd.readInt8(&fnt.Info.Spacing.Horizontal, bin) {
-				return nil, fmt.Errorf("expected one byte for spacingHoriz")
-			}
-			if !brd.readInt8(&fnt.Info.Spacing.Vertical, bin) {
-				return nil, fmt.Errorf("expected one byte for spacingVert")
-			}
-			if !brd.readInt8(&fnt.Info.Outline, bin) {
-				return nil, fmt.Errorf("expected one byte for outline")
-			}
-			if len := blockLen - brd.Index; !brd.read(len) {
-				return nil, fmt.Errorf("expected %d bytes for fontName", len)
-			}
-			if brd.Buffer[len(brd.Buffer)-1] != 0 {
-				return nil, fmt.Errorf("expected fontName to be null terminated")
-			}
-			fnt.Info.Face = string(brd.Buffer[:len(brd.Buffer)-1])
-		case "common":
-			if !brd.readInt16(&fnt.Common.LineHeight, bin) {
-				return nil, fmt.Errorf("expected two bytes for lineHeight")
-			}
-			if !brd.readInt16(&fnt.Common.Base, bin) {
-				return nil, fmt.Errorf("expected two bytes for base")
-			}
-			if !brd.readInt16(&fnt.Common.ScaleW, bin) {
-				return nil, fmt.Errorf("expected two bytes for scaleW")
-			}
-			if !brd.readInt16(&fnt.Common.ScaleH, bin) {
-				return nil, fmt.Errorf("expected two bytes for scaleH")
-			}
-			if !brd.readInt16(&fnt.Common.Pages, bin) {
-				return nil, fmt.Errorf("expected two bytes for pages")
-			}
-			var flags uint8
-			if !brd.readBits(&flags) {
-				return nil, fmt.Errorf("expected one byte for bitField")
-			}
-			fnt.Common.Packed = itob(int(flags >> 0 & 1))
-			if !brd.readInt8((*int)(&fnt.Common.AlphaChannel), bin) {
-				return nil, fmt.Errorf("expected one byte for alphaChnl")
-			}
-			if !brd.readInt8((*int)(&fnt.Common.RedChannel), bin) {
-				return nil, fmt.Errorf("expected one byte for redChnl")
-			}
-			if !brd.readInt8((*int)(&fnt.Common.GreenChannel), bin) {
-				return nil, fmt.Errorf("expected one byte for greenChnl")
-			}
-			if !brd.readInt8((*int)(&fnt.Common.BlueChannel), bin) {
-				return nil, fmt.Errorf("expected one byte for blueChnl")
-			}
-		case "pages":
-			nameLen := 0
-			file0 := ""
-			start := brd.Index
-			if !brd.read(blockLen - start - 1) {
-				return nil, fmt.Errorf("expected %d bytes for pageNames", blockLen-start-1)
-			}
-			for i, b := range brd.Buffer {
-				nameLen++
-				if b == 0 {
-					break
-				}
-				if i == len(brd.Buffer) {
-					return nil, fmt.Errorf("expected null terminated pageName")
-				}
-				file0 += string(b)
-			}
-			fnt.Pages = append(fnt.Pages, Page{
-				Id:   0,
-				File: file0,
-			})
-
-			brd.Index = start + nameLen
-			for brd.Index < blockLen {
-				if !brd.read(nameLen) {
-					return nil, fmt.Errorf("expected %d bytes for pageName", nameLen)
-				}
-				fnt.Pages = append(fnt.Pages, Page{
-					Id:   len(fnt.Pages),
-					File: string(brd.Buffer[:len(brd.Buffer)-1]),
-				})
-			}
-			if brd.Index != blockLen {
-				return nil, fmt.Errorf("pageNames is longer than block size")
-			}
-		case "chars":
-			for brd.Index < blockLen {
-				chr := Char{}
-				if !brd.readRune(&chr.Id, bin) {
-					return nil, fmt.Errorf("expected four bytes for id")
-				}
-				if !brd.readInt16(&chr.X, bin) {
-					return nil, fmt.Errorf("expected two bytes for x")
-				}
-				if !brd.readInt16(&chr.Y, bin) {
-					return nil, fmt.Errorf("expected two bytes for y")
-				}
-				if !brd.readInt16(&chr.Width, bin) {
-					return nil, fmt.Errorf("expected two bytes for width")
-				}
-				if !brd.readInt16(&chr.Height, bin) {
-					return nil, fmt.Errorf("expected two bytes for height")
-				}
-				if !brd.readInt16(&chr.XOffset, bin) {
-					return nil, fmt.Errorf("expected two bytes for xoffset")
-				}
-				if !brd.readInt16(&chr.YOffset, bin) {
-					return nil, fmt.Errorf("expected two bytes for yoffset")
-				}
-				if !brd.readInt16(&chr.XAdvance, bin) {
-					return nil, fmt.Errorf("expected two bytes for xadvance")
-				}
-				if !brd.readInt8(&chr.Page, bin) {
-					return nil, fmt.Errorf("expected one byte for page")
-				}
-				if !brd.readInt8((*int)(&chr.Channel), bin) {
-					return nil, fmt.Errorf("expected one byte for chnl")
-				}
-				fnt.Chars = append(fnt.Chars, chr)
-			}
-			if brd.Index != blockLen {
-				return nil, fmt.Errorf("chars is longer than block size")
-			}
-		case "kerning pairs":
-			for brd.Index < blockLen {
-				kern := Kerning{}
-				if !brd.readRune(&kern.First, bin) {
-					return nil, fmt.Errorf("expected four bytes for first")
-				}
-				if !brd.readRune(&kern.Second, bin) {
-					return nil, fmt.Errorf("expected four bytes for second")
-				}
-				if !brd.readInt16(&kern.Amount, bin) {
-					return nil, fmt.Errorf("expected two bytes for amount")
-				}
-				fnt.Kernings = append(fnt.Kernings, kern)
-			}
-			if brd.Index != blockLen {
-				return nil, fmt.Errorf("kerning pairs is longer than block size")
-			}
-		}
-		rd = frd
+	if !brd.readInt16(&info.Size, order) {
+		return nil, fmt.Errorf("expected two bytes for fontSize")
+	}
+	var flags uint8
+	if !brd.readBits(&flags) {
+		return nil, fmt.Errorf("expected one byte for bitField")
+	}
+	info.Smooth = itob(int(flags >> 7 & 0x1))
+	info.Unicode = itob(int(flags >> 6 & 0x1))
+	info.Italic = itob(int(flags >> 5 & 0x1))
+	info.Bold = itob(int(flags >> 4 & 0x1))
+	//FIXME: Unused "fixedHeigth" bit
+	if !brd.read(1) {
+		return nil, fmt.Errorf("expected one byte for charSet")
 	}
 
-	return fnt, nil
+	if !brd.readInt16(&info.StretchH, order) {
+		return nil, fmt.Errorf("expected two bytes for stretchH")
+	}
+	if !brd.readInt8(&info.AA, order) {
+		return nil, fmt.Errorf("expected one byte for aa")
+	}
+	if !brd.readInt8(&info.Padding.Up, order) {
+		return nil, fmt.Errorf("expected one byte for paddingUp")
+	}
+	if !brd.readInt8(&info.Padding.Right, order) {
+		return nil, fmt.Errorf("expected one byte for paddingRight")
+	}
+	if !brd.readInt8(&info.Padding.Down, order) {
+		return nil, fmt.Errorf("expected one byte for paddingDown")
+	}
+	if !brd.readInt8(&info.Padding.Left, order) {
+		return nil, fmt.Errorf("expected one byte for paddingLeft")
+	}
+	if !brd.readInt8(&info.Spacing.Horizontal, order) {
+		return nil, fmt.Errorf("expected one byte for spacingHoriz")
+	}
+	if !brd.readInt8(&info.Spacing.Vertical, order) {
+		return nil, fmt.Errorf("expected one byte for spacingVert")
+	}
+	if !brd.readInt8(&info.Outline, order) {
+		return nil, fmt.Errorf("expected one byte for outline")
+	}
+	if len := blockLength - brd.Index; !brd.read(len) {
+		return nil, fmt.Errorf("expected %d bytes for fontName", len)
+	}
+	if brd.Buffer[len(brd.Buffer)-1] != 0 {
+		return nil, fmt.Errorf("expected fontName to be null terminated")
+	}
+	info.Face = string(brd.Buffer[:len(brd.Buffer)-1])
+	return &info, nil
+}
+
+func parseCommonBinary(brd *byteReader, order binary.ByteOrder) (*Common, error) {
+	common := Common{}
+
+	if !brd.readInt16(&common.LineHeight, order) {
+		return nil, fmt.Errorf("expected two bytes for lineHeight")
+	}
+	if !brd.readInt16(&common.Base, order) {
+		return nil, fmt.Errorf("expected two bytes for base")
+	}
+	if !brd.readInt16(&common.ScaleW, order) {
+		return nil, fmt.Errorf("expected two bytes for scaleW")
+	}
+	if !brd.readInt16(&common.ScaleH, order) {
+		return nil, fmt.Errorf("expected two bytes for scaleH")
+	}
+	if !brd.readInt16(&common.Pages, order) {
+		return nil, fmt.Errorf("expected two bytes for pages")
+	}
+	var flags uint8
+	if !brd.readBits(&flags) {
+		return nil, fmt.Errorf("expected one byte for bitField")
+	}
+	common.Packed = itob(int(flags >> 0 & 1))
+	if !brd.readInt8((*int)(&common.AlphaChannel), order) {
+		return nil, fmt.Errorf("expected one byte for alphaChnl")
+	}
+	if !brd.readInt8((*int)(&common.RedChannel), order) {
+		return nil, fmt.Errorf("expected one byte for redChnl")
+	}
+	if !brd.readInt8((*int)(&common.GreenChannel), order) {
+		return nil, fmt.Errorf("expected one byte for greenChnl")
+	}
+	if !brd.readInt8((*int)(&common.BlueChannel), order) {
+		return nil, fmt.Errorf("expected one byte for blueChnl")
+	}
+
+	return &common, nil
+}
+
+func parsePagesBinary(brd *byteReader, blockLength int) ([]Page, error) {
+	pages := []Page{}
+	nameLen := 0
+	file0 := ""
+	start := brd.Index
+	if !brd.read(blockLength - start - 1) {
+		return nil, fmt.Errorf("expected %d bytes for pageNames", blockLength-start-1)
+	}
+	for i, b := range brd.Buffer {
+		nameLen++
+		if b == 0 {
+			break
+		}
+		if i == len(brd.Buffer) {
+			return nil, fmt.Errorf("expected null terminated pageName")
+		}
+		file0 += string(b)
+	}
+	pages = append(pages, Page{
+		Id:   0,
+		File: file0,
+	})
+
+	brd.Index = start + nameLen
+	for brd.Index < blockLength {
+		if !brd.read(nameLen) {
+			return nil, fmt.Errorf("expected %d bytes for pageName", nameLen)
+		}
+		pages = append(pages, Page{
+			Id:   len(pages),
+			File: string(brd.Buffer[:len(brd.Buffer)-1]),
+		})
+	}
+	if brd.Index != blockLength {
+		return nil, fmt.Errorf("pageNames is longer than block size")
+	}
+
+	return pages, nil
+}
+
+func parseCharsBinary(brd *byteReader, order binary.ByteOrder, blockLength int) ([]Char, error) {
+	chars := make([]Char, 0, blockLength/20)
+
+	for brd.Index < blockLength {
+		chr := Char{}
+		if !brd.readRune(&chr.Id, order) {
+			return nil, fmt.Errorf("expected four bytes for id")
+		}
+		if !brd.readInt16(&chr.X, order) {
+			return nil, fmt.Errorf("expected two bytes for x")
+		}
+		if !brd.readInt16(&chr.Y, order) {
+			return nil, fmt.Errorf("expected two bytes for y")
+		}
+		if !brd.readInt16(&chr.Width, order) {
+			return nil, fmt.Errorf("expected two bytes for width")
+		}
+		if !brd.readInt16(&chr.Height, order) {
+			return nil, fmt.Errorf("expected two bytes for height")
+		}
+		if !brd.readInt16(&chr.XOffset, order) {
+			return nil, fmt.Errorf("expected two bytes for xoffset")
+		}
+		if !brd.readInt16(&chr.YOffset, order) {
+			return nil, fmt.Errorf("expected two bytes for yoffset")
+		}
+		if !brd.readInt16(&chr.XAdvance, order) {
+			return nil, fmt.Errorf("expected two bytes for xadvance")
+		}
+		if !brd.readInt8(&chr.Page, order) {
+			return nil, fmt.Errorf("expected one byte for page")
+		}
+		if !brd.readInt8((*int)(&chr.Channel), order) {
+			return nil, fmt.Errorf("expected one byte for chnl")
+		}
+		chars = append(chars, chr)
+	}
+
+	if brd.Index != blockLength {
+		return nil, fmt.Errorf("chars is longer than block size")
+	}
+
+	return chars, nil
+}
+
+func parseKerningPairsBinary(brd *byteReader, order binary.ByteOrder, blockLength int) ([]Kerning, error) {
+	kernings := []Kerning{}
+
+	for brd.Index < blockLength {
+		kern := Kerning{}
+		if !brd.readRune(&kern.First, order) {
+			return nil, fmt.Errorf("expected four bytes for first")
+		}
+		if !brd.readRune(&kern.Second, order) {
+			return nil, fmt.Errorf("expected four bytes for second")
+		}
+		if !brd.readInt16(&kern.Amount, order) {
+			return nil, fmt.Errorf("expected two bytes for amount")
+		}
+		kernings = append(kernings, kern)
+	}
+
+	if brd.Index != blockLength {
+		return nil, fmt.Errorf("kerning pairs is longer than block size")
+	}
+
+	return kernings, nil
 }

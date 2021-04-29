@@ -2,9 +2,9 @@ package bmf
 
 import "fmt"
 
-// KnownCharsets enumerates known charset values
+// CharsetTable enumerates known charset values
 // source https://docs.microsoft.com/en-us/previous-versions/windows/desktop/bb322881(v=vs.85)
-var KnownCharsets = map[int]string{
+var CharsetTable = map[int]string{
 	186: "Baltic",
 	77:  "Mac",
 	204: "Russian",
@@ -28,7 +28,7 @@ var KnownCharsets = map[int]string{
 
 // LookupCharset gets the name of a charset or value as a decimal string when not found
 func LookupCharset(charsetEnum int) (name string, found bool) {
-	if charset, ok := KnownCharsets[charsetEnum]; ok {
+	if charset, ok := CharsetTable[charsetEnum]; ok {
 		return charset, true
 	}
 	return fmt.Sprintf("%d", charsetEnum), false
