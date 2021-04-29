@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// TextParseError contains info about where and why a parsing error occured
+// TextParseError contains info about where and why a parsing error occurred
 type TextParseError struct {
 	LineNumber int
 	Line       string

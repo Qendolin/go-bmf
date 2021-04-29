@@ -25,7 +25,7 @@ var binaryBlockTable = map[byte]binaryBlockLabel{
 	5: blockKerningPairs,
 }
 
-// BinaryParseError contains info about where and why a parsing error occured
+// BinaryParseError contains info about where and why a parsing error occurred
 type BinaryParseError struct {
 	Offset    int
 	Block     []byte
