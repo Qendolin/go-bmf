@@ -3,6 +3,7 @@ package bmf
 import (
 	"encoding/xml"
 	"fmt"
+	"io"
 )
 
 // UnmarshalXMLAttr converts from format <up>,<right>,<down>,<left>
@@ -57,7 +58,12 @@ func (font Font) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 }
 
 // ParseXML parses a bmf font file in XML format
-func ParseXML(data []byte) (*Font, error) {
+func ParseXML(src io.Reader) (*Font, error) {
+	data, err := io.ReadAll(src)
+	if err != nil {
+		return nil, err
+	}
+
 	fnt := &Font{}
 	if err := xml.Unmarshal(data, fnt); err != nil {
 		return nil, err

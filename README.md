@@ -1,25 +1,33 @@
 # AngelCode BMF parsing in Go
 [![Go Report Card](https://goreportcard.com/badge/github.com/Qendolin/go-bmf)](https://goreportcard.com/report/github.com/Qendolin/go-bmf)
  
-Supports parsing text, XML and binary formats in version 3. Also supports writing as XML.
+Supports parsing and serializing text, XML and binary formats in version 3.
 
 ## API
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/Qendolin/go-bmf)](https://pkg.go.dev/github.com/Qendolin/go-bmf)
 
-`bmf.Parse(data []byte) (*bmf.Font, error)`  
+`bmf.Parse(src io.Reader) (*bmf.Font, error)`  
 Parses AngelCode BMF and automatically chooses the correct format
 
 
-`bmf.ParseText(data []byte) (*bmf.Font, error)`  
+`bmf.ParseText(src io.Reader) (*bmf.Font, error)`  
 Parses AngelCode BMF in text format
 
 
-`bmf.ParseXML(data []byte) (*bmf.Font, error)`  
+`bmf.ParseXML(src io.Reader) (*bmf.Font, error)`  
 Parses AngelCode BMF in XML format
 
 
-`bmf.ParseBinary(data []byte) (*bmf.Font, error)`  
+`bmf.ParseBinary(src io.Reader) (*bmf.Font, error)`  
 Parses AngelCode BMF in binary format
+
+
+`bmf.SerializeBinary(fnt *bmf.Font, dst io.Writer) error`  
+Serializes AngelCode BMF in binary format
+
+
+`bmf.SerializeText(fnt *bmf.Font, dst io.Writer) error`  
+Serializes AngelCode BMF in text format
 
 ## Issues
 

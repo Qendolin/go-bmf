@@ -4,9 +4,9 @@
 package bmf
 
 import (
-	"fmt"
+	"bytes"
+	"io"
 	"strconv"
-	"strings"
 )
 
 // BinBool represents a boolean as 0 or 1 in xml
@@ -119,32 +119,6 @@ type Page struct {
 	File string `xml:"file,attr"`
 }
 
-func parsePadding(s string) Padding {
-	pad := Padding{}
-
-	v := strings.SplitN(s, ",", 4)
-	v = append(v, "0", "0", "0", "0")
-
-	atoi(&pad.Up, v[0])
-	atoi(&pad.Right, v[1])
-	atoi(&pad.Down, v[2])
-	atoi(&pad.Left, v[3])
-
-	return pad
-}
-
-func parseSpacing(s string) Spacing {
-	sp := Spacing{}
-
-	v := strings.SplitN(s, ",", 4)
-	v = append(v, "0", "0")
-
-	atoi(&sp.Horizontal, v[0])
-	atoi(&sp.Vertical, v[1])
-
-	return sp
-}
-
 func atoi(i *int, a string) {
 	v, err := strconv.Atoi(a)
 	if err == nil {
@@ -154,21 +128,32 @@ func atoi(i *int, a string) {
 	}
 }
 
-func itob(i int) BinBool {
+func Bool(i int) BinBool {
 	return i == 1
 }
 
+func (b BinBool) Byte() byte {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 // Parse parses a bmf font file and detects the format automatically
-func Parse(data []byte) (*Font, error) {
-	if len(data) < 5 {
-		return nil, fmt.Errorf("data must have length of at least 5 bytes")
+func Parse(src io.Reader) (*Font, error) {
+	start := make([]byte, 5)
+
+	if _, err := src.Read(start); err != nil {
+		return nil, err
 	}
 
-	if string(data[:3]) == "BMF" {
-		return ParseBinary(data)
+	src = io.MultiReader(bytes.NewBufferString(string(start)), src)
+
+	if string(start[:3]) == "BMF" {
+		return ParseBinary(src)
 	}
-	if string(data[:5]) == "<?xml" {
-		return ParseXML(data)
+	if string(start[:5]) == "<?xml" {
+		return ParseXML(src)
 	}
-	return ParseText(data)
+	return ParseText(src)
 }

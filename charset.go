@@ -1,6 +1,10 @@
 package bmf
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 // CharsetTable enumerates known charset values
 // source https://docs.microsoft.com/en-us/previous-versions/windows/desktop/bb322881(v=vs.85)
@@ -32,4 +36,18 @@ func LookupCharset(charsetEnum int) (name string, found bool) {
 		return charset, true
 	}
 	return fmt.Sprintf("%d", charsetEnum), false
+}
+
+// LookupCharsetValue gets the enum value of a charset or converts a a decimal string to a number
+func LookupCharsetValue(charset string) (value int, found bool) {
+	charset = strings.ToLower(charset)
+
+	for k, v := range CharsetTable {
+		if strings.ToLower(v) == charset {
+			return k, true
+		}
+	}
+
+	value, err := strconv.Atoi(charset)
+	return value, err == nil
 }

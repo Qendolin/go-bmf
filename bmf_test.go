@@ -1,6 +1,7 @@
 package bmf_test
 
 import (
+	"bytes"
 	"encoding/xml"
 	"io/ioutil"
 	"os"
@@ -103,7 +104,7 @@ func TestParseXML(t *testing.T) {
 	require.NoErrorf(t, err, "Unable to open testdata")
 	data, err := ioutil.ReadAll(f)
 	require.NoErrorf(t, err, "Unable to read testdata")
-	fnt, err := bmf.ParseXML(data)
+	fnt, err := bmf.ParseXML(bytes.NewBuffer(data))
 	require.NoError(t, err)
 	assertFontEqual(t, Expected, *fnt)
 }
@@ -111,26 +112,44 @@ func TestParseXML(t *testing.T) {
 func TestWriteXML(t *testing.T) {
 	data, err := xml.MarshalIndent(Expected, "", "\t")
 	require.NoError(t, err)
-	fnt, err := bmf.ParseXML(data)
+	fnt, err := bmf.ParseXML(bytes.NewBuffer(data))
 	require.NoError(t, err)
 	assertFontEqual(t, Expected, *fnt)
 }
 
-func TestBinary(t *testing.T) {
+func TestParseBinary(t *testing.T) {
 	f, err := os.Open("./testdata/test-bin.fnt")
 	require.NoErrorf(t, err, "Unable to open testdata")
 	data, err := ioutil.ReadAll(f)
 	require.NoErrorf(t, err, "Unable to read testdata")
+	fnt, err := bmf.ParseBinary(bytes.NewBuffer(data))
+	require.NoError(t, err)
+	assertFontEqual(t, Expected, *fnt)
+}
+
+func TestWriteBinary(t *testing.T) {
+	data := &bytes.Buffer{}
+	err := bmf.SerializeBinary(&Expected, data)
+	require.NoError(t, err)
 	fnt, err := bmf.ParseBinary(data)
 	require.NoError(t, err)
 	assertFontEqual(t, Expected, *fnt)
 }
 
-func TestText(t *testing.T) {
+func TestParseText(t *testing.T) {
 	f, err := os.Open("./testdata/test-text.fnt")
 	require.NoErrorf(t, err, "Unable to open testdata")
 	data, err := ioutil.ReadAll(f)
 	require.NoErrorf(t, err, "Unable to read testdata")
+	fnt, err := bmf.ParseText(bytes.NewBuffer(data))
+	require.NoError(t, err)
+	assertFontEqual(t, Expected, *fnt)
+}
+
+func TestWriteText(t *testing.T) {
+	data := &bytes.Buffer{}
+	err := bmf.SerializeText(&Expected, data)
+	require.NoError(t, err)
 	fnt, err := bmf.ParseText(data)
 	require.NoError(t, err)
 	assertFontEqual(t, Expected, *fnt)
@@ -143,7 +162,7 @@ func TestAutoDetect(t *testing.T) {
 		require.NoErrorf(t, err, "Unable to open testdata")
 		data, err := ioutil.ReadAll(f)
 		require.NoErrorf(t, err, "Unable to read testdata")
-		fnt, err := bmf.Parse(data)
+		fnt, err := bmf.Parse(bytes.NewBuffer(data))
 		require.NoError(t, err)
 		assertFontEqual(t, Expected, *fnt)
 	}

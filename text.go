@@ -2,7 +2,6 @@ package bmf
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -25,8 +24,34 @@ func (e TextParseError) Unwrap() error {
 	return e.Err
 }
 
+func parsePadding(s string) Padding {
+	pad := Padding{}
+
+	v := strings.SplitN(s, ",", 4)
+	v = append(v, "0", "0", "0", "0")
+
+	atoi(&pad.Up, v[0])
+	atoi(&pad.Right, v[1])
+	atoi(&pad.Down, v[2])
+	atoi(&pad.Left, v[3])
+
+	return pad
+}
+
+func parseSpacing(s string) Spacing {
+	sp := Spacing{}
+
+	v := strings.SplitN(s, ",", 4)
+	v = append(v, "0", "0")
+
+	atoi(&sp.Horizontal, v[0])
+	atoi(&sp.Vertical, v[1])
+
+	return sp
+}
+
 // ParseText parses a bmf font file in text format
-func ParseText(data []byte) (fnt *Font, err error) {
+func ParseText(src io.Reader) (fnt *Font, err error) {
 	var lineNr int
 	var line string
 	defer func() {
@@ -41,7 +66,7 @@ func ParseText(data []byte) (fnt *Font, err error) {
 
 	fnt = &Font{}
 
-	sc := bufio.NewScanner(bytes.NewReader(data))
+	sc := bufio.NewScanner(src)
 	for sc.Scan() {
 		lineNr++
 		line = sc.Text()
@@ -87,17 +112,17 @@ func parseInfoText(attribs map[string]int, strs []string) Info {
 		case "face":
 			info.Face = strs[v]
 		case "bold":
-			info.Bold = itob(v)
+			info.Bold = Bool(v)
 		case "italic":
-			info.Italic = itob(v)
+			info.Italic = Bool(v)
 		case "charset":
 			info.Charset = strs[v]
 		case "unicode":
-			info.Unicode = itob(v)
+			info.Unicode = Bool(v)
 		case "stretchH":
 			info.StretchH = v
 		case "smooth":
-			info.Smooth = itob(v)
+			info.Smooth = Bool(v)
 		case "aa":
 			info.AA = v
 		case "padding":
@@ -158,7 +183,7 @@ func parseCommonText(attribs map[string]int) Common {
 		case "pages":
 			common.Pages = v
 		case "packed":
-			common.Packed = itob(v)
+			common.Packed = Bool(v)
 		case "alphaChnl":
 			common.AlphaChannel = ChannelData(v)
 		case "redChnl":
@@ -238,4 +263,102 @@ func parseTagText(line string) (name string, values map[string]int, strs []strin
 	}
 
 	return
+}
+
+// SerializeText serializes a bmf font file in text format
+func SerializeText(fnt *Font, dst io.Writer) error {
+	if err := serializeInfoBlockText(fnt, dst); err != nil {
+		return err
+	}
+	if err := serializeCommonBlockText(fnt, dst); err != nil {
+		return err
+	}
+	if err := serializePagesBlockText(fnt, dst); err != nil {
+		return err
+	}
+	if err := serializeCharsBlockText(fnt, dst); err != nil {
+		return err
+	}
+	if err := serializeKerningsBlockText(fnt, dst); err != nil {
+		return err
+	}
+	return nil
+}
+
+func serializeInfoBlockText(fnt *Font, dst io.Writer) error {
+	i := fnt.Info
+
+	_, err := fmt.Fprintf(dst, "info face=%q size=%d bold=%d italic=%d charset=%q unicode=%d stretchH=%d smooth=%d aa=%d ",
+		i.Face, i.Size, i.Bold.Byte(), i.Italic.Byte(), i.Charset, i.Unicode.Byte(), i.StretchH, i.Smooth.Byte(), i.AA)
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(dst, "padding=%d,%d,%d,%d spacing=%d,%d outline=%d\n",
+		i.Padding.Up, i.Padding.Right, i.Padding.Down, i.Padding.Left, i.Spacing.Horizontal, i.Spacing.Vertical, i.Outline)
+
+	return err
+}
+
+func serializeCommonBlockText(fnt *Font, dst io.Writer) error {
+	c := fnt.Common
+
+	_, err := fmt.Fprintf(dst, "common lineHeight=%d base=%d scaleW=%d scaleH=%d pages=%d packed=%d ",
+		c.LineHeight, c.Base, c.ScaleW, c.ScaleH, c.Pages, c.Packed.Byte())
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(dst, "alphaChnl=%d redChnl=%d greenChnl=%d blueChnl=%d\n",
+		c.AlphaChannel, c.RedChannel, c.GreenChannel, c.BlueChannel)
+
+	return err
+}
+
+func serializePagesBlockText(fnt *Font, dst io.Writer) error {
+	for _, p := range fnt.Pages {
+		_, err := fmt.Fprintf(dst, "page id=%d file=%q\n", p.Id, p.File)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func serializeCharsBlockText(fnt *Font, dst io.Writer) error {
+	_, err := fmt.Fprintf(dst, "chars count=%d\n", len(fnt.Chars))
+	if err != nil {
+		return err
+	}
+
+	for _, c := range fnt.Chars {
+		_, err = fmt.Fprintf(dst, "char id=%d x=%d y=%d width=%d height=%d ",
+			c.Id, c.X, c.Y, c.Width, c.Height)
+		if err != nil {
+			return err
+		}
+
+		_, err = fmt.Fprintf(dst, "xoffset=%d yoffset=%d xadvance=%d page=%d chnl=%d\n",
+			c.XOffset, c.YOffset, c.XAdvance, c.Page, c.Channel)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func serializeKerningsBlockText(fnt *Font, dst io.Writer) error {
+	_, err := fmt.Fprintf(dst, "kernings count=%d\n", len(fnt.Kernings))
+	if err != nil {
+		return err
+	}
+
+	for _, k := range fnt.Kernings {
+		_, err := fmt.Fprintf(dst, "kerning first=%d second=%d amount=%d\n",
+			k.First, k.Second, k.Amount)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
