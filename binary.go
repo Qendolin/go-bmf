@@ -10,7 +10,7 @@ import (
 	"github.com/Qendolin/go-bmf/internal/binary"
 )
 
-// The supportet version of the binary format
+// SupportedVersion of the binary format
 const SupportedVersion = 3
 
 // BinaryParseError contains info about where and why a parsing error occurred
@@ -29,6 +29,7 @@ func (e BinaryParseError) Unwrap() error {
 	return e.Err
 }
 
+// BlockType specifies the type of a binary block
 type BlockType byte
 
 const (
@@ -40,6 +41,7 @@ const (
 	blockKerningPairs BlockType = 5
 )
 
+// Name returns the name of the block
 func (typ BlockType) Name() string {
 	return blockNameTable[typ]
 }

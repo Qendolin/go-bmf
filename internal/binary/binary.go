@@ -137,46 +137,46 @@ func (bw *Writer) Write(p []byte) (ok bool) {
 	return
 }
 
-func (br *Writer) WriteString(s string) (ok bool) {
-	return br.Write([]byte(s))
+func (bw *Writer) WriteString(s string) (ok bool) {
+	return bw.Write([]byte(s))
 }
 
-func (br *Writer) WriteNullString(s string) (ok bool) {
-	return br.Write(append([]byte(s), 0))
+func (bw *Writer) WriteNullString(s string) (ok bool) {
+	return bw.Write(append([]byte(s), 0))
 }
 
-func (br *Writer) WriteBits(b uint8) (ok bool) {
-	return br.Write([]byte{b})
+func (bw *Writer) WriteBits(b uint8) (ok bool) {
+	return bw.Write([]byte{b})
 }
 
-func (br *Writer) WriteUInt8(i uint8) (ok bool) {
-	return br.Write([]byte{i})
+func (bw *Writer) WriteUInt8(i uint8) (ok bool) {
+	return bw.Write([]byte{i})
 }
 
-func (br *Writer) WriteInt8(i int8) (ok bool) {
-	return br.Write([]byte{byte(i)})
+func (bw *Writer) WriteInt8(i int8) (ok bool) {
+	return bw.Write([]byte{byte(i)})
 }
 
-func (br *Writer) WriteInt16(i int16) (ok bool) {
+func (bw *Writer) WriteInt16(i int16) (ok bool) {
 	buf := make([]byte, 2)
-	br.Order.PutUint16(buf, uint16(i))
-	return br.Write(buf)
+	bw.Order.PutUint16(buf, uint16(i))
+	return bw.Write(buf)
 }
 
-func (br *Writer) WriteUInt16(i uint16) (ok bool) {
+func (bw *Writer) WriteUInt16(i uint16) (ok bool) {
 	buf := make([]byte, 2)
-	br.Order.PutUint16(buf, i)
-	return br.Write(buf)
+	bw.Order.PutUint16(buf, i)
+	return bw.Write(buf)
 }
 
-func (br *Writer) WriteInt32(i int32) (ok bool) {
+func (bw *Writer) WriteInt32(i int32) (ok bool) {
 	buf := make([]byte, 4)
-	br.Order.PutUint32(buf, uint32(i))
-	return br.Write(buf)
+	bw.Order.PutUint32(buf, uint32(i))
+	return bw.Write(buf)
 }
 
-func (br *Writer) WriteUInt32(i uint32) (ok bool) {
+func (bw *Writer) WriteUInt32(i uint32) (ok bool) {
 	buf := make([]byte, 4)
-	br.Order.PutUint32(buf, i)
-	return br.Write(buf)
+	bw.Order.PutUint32(buf, i)
+	return bw.Write(buf)
 }

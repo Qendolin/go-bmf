@@ -128,10 +128,12 @@ func atoi(i *int, a string) {
 	}
 }
 
+// Bool converts a number to a BinBool where 1 is true
 func Bool(i int) BinBool {
 	return i == 1
 }
 
+// Byte converts the boolean to a byte where true is 1 and false is 0
 func (b BinBool) Byte() byte {
 	if b {
 		return 1
