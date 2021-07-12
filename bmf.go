@@ -1,4 +1,4 @@
-// Package bmf implements BMF .fnt file parsing.
+// Package bmf implements BMF .fnt file parsing and serialization.
 // It supports only version 3 of the binary format.
 // For more information see http://www.angelcode.com/products/bmfont/doc/file_format.html
 package bmf
@@ -9,7 +9,7 @@ import (
 	"strconv"
 )
 
-// BinBool represents a boolean as 0 or 1 in xml
+// BinBool represents a boolean as 0 or 1
 type BinBool bool
 
 // ChannelData specifies the type of data that a color channel holds
