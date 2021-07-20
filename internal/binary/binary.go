@@ -2,7 +2,7 @@ package binary
 
 import (
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"io"
 )
 
@@ -13,6 +13,8 @@ type Reader struct {
 	Err   error
 	buf   []byte
 }
+
+var ErrNotNullTerminated = errors.New("string was not null terminated")
 
 func (br *Reader) Read(n int) (ok bool) {
 	if br.Err != nil {
@@ -90,7 +92,7 @@ func (br *Reader) ReadNullString(s *string, max int) (ok bool) {
 
 	for ; i <= max; i++ {
 		if i == max {
-			br.Err = fmt.Errorf("string was not null terminated")
+			br.Err = ErrNotNullTerminated
 			return false
 		}
 

@@ -186,7 +186,7 @@ func parseHeaderBinary(frd *binary.Reader) (err error) {
 		return fmt.Errorf("expected one byte for the format version")
 	}
 	if version != SupportedVersion {
-		return fmt.Errorf("expected version to be one 3")
+		return fmt.Errorf("expected version to be %d", SupportedVersion)
 	}
 
 	return nil
@@ -305,7 +305,7 @@ func parseCommonBinary(brd *binary.Reader, blockLength int) (*Common, error) {
 func parsePagesBinary(brd *binary.Reader, blockLength int) ([]Page, error) {
 	var file0 string
 	if !brd.ReadNullString(&file0, blockLength) {
-		return nil, fmt.Errorf("expected first null-terminated pageName")
+		return nil, fmt.Errorf("expected first null-terminated pageName within %d bytes", blockLength)
 	}
 
 	nameLen := len(file0) + 1
@@ -315,7 +315,7 @@ func parsePagesBinary(brd *binary.Reader, blockLength int) ([]Page, error) {
 	}}
 
 	if blockLength%nameLen != 0 {
-		return nil, fmt.Errorf("expected multiple of %d bytes for pages block but was %d", nameLen, blockLength)
+		return nil, fmt.Errorf("expected a multiple of %d bytes for pages block but was %d", nameLen, blockLength)
 	}
 
 	for i := 1; i < blockLength/nameLen; i++ {
